@@ -57,13 +57,25 @@ export function autoBind(target, keys) {
   });
 }
 /**
- * @param {*} val
+ * @param {*} value
  * @return {String}
  */
-export function getGrapQLArgsStr(val) {
-  // todo fix array
-  return JSON.stringify(val)
-    .replace(/\{\s*"/g, '{')
-    .replace(/"\s*\:/g, ':')
-    .replace(/,\s*"/g, ',');
+export function getGrapQLArgsStr(value) {
+  function parse(val) {
+    if (typeof val === 'string') {
+      return `"${val}"`;
+    }
+    if (typeof val === 'number') {
+      return String(val);
+    }
+    if (Array.isArray(val)) {
+      return '[' + val.map(item => parse(item)).join(',') + ']';
+    }
+    const res = [];
+    mapValues(val, (item, key) => {
+      res.push(`${key}:${parse(item)}`);
+    });
+    return '{' + res.join(',') + '}';
+  }
+  return parse(value);
 }

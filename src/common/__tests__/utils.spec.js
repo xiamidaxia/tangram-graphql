@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { replaceObj, mapValues } from '../utils';
+import { replaceObj, mapValues, getGrapQLArgsStr } from '../utils';
 describe('Utils', () => {
   it('mapValues', () => {
     const oldObj = { name: 'name', value: 'value' };
@@ -24,7 +24,9 @@ describe('Utils', () => {
       keyNoChange: {
         fn: () => 'newKeyNoChange',
       },
-      keyFn() { return 'newFn'; },
+      keyFn() {
+        return 'newFn';
+      },
     });
     expect(newObj).to.eql({
       _name: 'name',
@@ -33,5 +35,18 @@ describe('Utils', () => {
       keyFn: 'newFn',
       otherVal: 'otherVal',
     });
+  });
+  it('getGrapQLArgsStr', () => {
+    function check(val, expected) {
+      expect(getGrapQLArgsStr(val)).to.eql(expected);
+    }
+    const obj = { str: 'str', num: 33, arr: ['arr1', 'arr2', 3] };
+    const objStr = '{str:"str",num:33,arr:["arr1","arr2",3]}';
+    check(3, '3');
+    check('str', '"str"');
+    check({}, '{}');
+    check([], '[]');
+    check(obj, objStr);
+    check([obj, obj], `[${objStr},${objStr}]`);
   });
 });
