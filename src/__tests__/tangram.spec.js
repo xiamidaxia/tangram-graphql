@@ -61,7 +61,7 @@ describe('Tangram graphql', () => {
   it('mutation add with param', async() => {
     expect(await todoTangram.exec('Todo', `
       mutation {
-        addTodo(INPUT: $input) {
+        addTodo(_set: $input) {
           id
           name
           user {

@@ -82,7 +82,7 @@ class TodoTangram extends Tangram {
     }
   }
   addOne(schema, args) {
-    const input = args.INPUT;
+    const input = args._set;
     input.createAt = (new Date).toJSON();
     input.id = todos.length;
     todos.push(input);

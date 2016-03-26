@@ -17,7 +17,6 @@ import GraphQlDate from '../types/GraphQLDate';
 import { mapValues, getGrapQLArgsStr } from '../common/utils';
 import Schema from './Schema';
 import queryArg from '../types/queryArg';
-
 const scalarTypes = {
   String: GraphQLString,
   Number: GraphQLFloat,
@@ -27,10 +26,8 @@ const scalarTypes = {
   ObjectId: GraphQLID,
   Date: GraphQlDate,
 };
-
 /**
  * @class Tangram
- * // todo: INC, ORDER_BY, PAGE, lt, gt, gte, lte, in, or, nin, not
  */
 export default class Tangram {
   constructor(schemas = []) {
@@ -42,15 +39,34 @@ export default class Tangram {
     this._schemas = schemas;
     this._graphQLSchemas = [];
   }
-  queryById() {}
-  queryOne() {}
-  queryList() {}
-  queryCount() {}
-  addOne() {}
-  deleteOne() {}
-  deleteList() {}
-  updateOne() {}
-  updateList() {}
+
+  queryById() {
+  }
+
+  queryOne() {
+  }
+
+  queryList() {
+  }
+
+  queryCount() {
+  }
+
+  addOne() {
+  }
+
+  deleteOne() {
+  }
+
+  deleteList() {
+  }
+
+  updateOne() {
+  }
+
+  updateList() {
+  }
+
   /**
    * @param {Schema} schema
    * @param {Object} data,
@@ -60,6 +76,7 @@ export default class Tangram {
   idFetcher(schema, data) {
     return this.toGlobalId(schema, data.id);
   }
+
   /**
    * @param {Schema} schema
    * @param {String} id
@@ -68,6 +85,7 @@ export default class Tangram {
   toGlobalId(schema, id) {
     return String(schema.id + '_' + id);
   }
+
   /**
    * @param {String} globalId
    * @returns {string}
@@ -75,6 +93,7 @@ export default class Tangram {
   fromGlobalId(globalId) {
     return globalId.replace(/^\d+\_/, '');
   }
+
   /**
    * @param {Schema|String} schema
    * @returns {GraphQLSchema}
@@ -82,6 +101,7 @@ export default class Tangram {
   getGraphQLSchema(schema) {
     return this._getGraphQLInfo(schema).graphQLSchema;
   }
+
   /**
    * @param {Schema|String} schema
    * @returns {Schema}
@@ -91,6 +111,7 @@ export default class Tangram {
     if (!_schema) throw new Error(`Unknow schema ${schema}`);
     return _schema;
   }
+
   /**
    * @param {Schema|String} schema
    * @returns {{schema: Schema, graphQLSchema, graphQLType}}
@@ -101,6 +122,7 @@ export default class Tangram {
     return this._graphQLSchemas.find(obj => obj.schema === _schema)
       || this._createGraphQLSchema(_schema);
   }
+
   /**
    * @param {Schema} schema
    * @returns {{schema: Schema, graphQLSchema, graphQLType}}
@@ -139,7 +161,7 @@ export default class Tangram {
         fields: {
           ['add' + nameUpperCase]: {
             type: graphQLType,
-            args: { INPUT: { type: inputType } },
+            args: { _set: { type: inputType } },
             resolve: (_, args) => this.addOne(schema, args),
           },
           ['delete' + nameUpperCase]: {
@@ -154,12 +176,12 @@ export default class Tangram {
           },
           ['update' + nameUpperCase]: {
             type: graphQLType,
-            args: { ...args, INPUT: { type: inputType } },
+            args: { ...args, _set: { type: inputType } },
             resolve: (_, args) => this.updateOne(schema, args),
           },
           ['update' + nameUpperCase + 's']: {
             type: new GraphQLList(graphQLType),
-            args: { ...args, INPUT: { type: inputType } },
+            args: { ...args, _set: { type: inputType } },
             resolve: (_, args) => this.updateList(schema, args),
           },
         },
@@ -173,6 +195,7 @@ export default class Tangram {
     this._graphQLSchemas.push(res);
     return res;
   }
+
   _getInputType(schema) {
     const { name, refs, struct } = schema;
     return new GraphQLInputObjectType({
@@ -194,6 +217,7 @@ export default class Tangram {
       },
     });
   }
+
   _getGraphQLType(schema) {
     const { name, refs, struct } = schema;
     const graphQLType = new GraphQLObjectType({
@@ -235,6 +259,7 @@ export default class Tangram {
     });
     return graphQLType;
   }
+
   _getArgs(schema) {
     const args = {};
     const numFields = [];
@@ -282,7 +307,8 @@ export default class Tangram {
    */
   exec(schemaName, graphQLStr, params = {}) {
     mapValues(params, (val, key) => {
-      graphQLStr = graphQLStr.replace(new RegExp('\\$' + key, 'g'), getGrapQLArgsStr(val));
+      graphQLStr = graphQLStr
+        .replace(new RegExp('\\$' + key, 'g'), getGrapQLArgsStr(val));
     });
     return graphql(this.getGraphQLSchema(schemaName), graphQLStr).then((resData) => {
       if (resData.errors && resData.errors.length !== 0) {

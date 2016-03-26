@@ -10,7 +10,7 @@ describe('MongoTangram', () => {
   function addUser() {
     return tangram.exec('User', `
       mutation {
-        addUser(INPUT: { name: "newUser", age: 22 }) {
+        addUser(_set: { name: "newUser", age: 22 }) {
           id
           name
         }

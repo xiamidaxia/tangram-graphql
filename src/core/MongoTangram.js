@@ -2,10 +2,6 @@ import Tangram from './Tangram';
 import { replaceObj, mapValues } from '../common/utils';
 const idFix = obj => (obj.id = obj._id) && obj;
 /**
- * _sort, _limit, _skip, _page, _or
- * $gt, $lt, $gte, $lte, $ne $size $slice
- * $exists, $all, $not, $in, $nin
- * $set $unset $push $pop $inc
  * @class MongoTangram
  */
 export default class MongoTangram extends Tangram {
@@ -34,13 +30,13 @@ export default class MongoTangram extends Tangram {
     return model.count(args);
   }
 
-  addOne(schema, { INPUT }) {
-    if (!INPUT) {
+  addOne(schema, { _set }) {
+    if (!_set) {
       throw new Error(`${schema}.add${schema} cant not be empty input.`);
     }
-    schema.checkData(INPUT);
+    schema.checkData(_set);
     const Model = this.getModel(schema);
-    const model = new Model(INPUT);
+    const model = new Model(_set);
     return model.save().then(() => {
       return idFix(model);
     });
