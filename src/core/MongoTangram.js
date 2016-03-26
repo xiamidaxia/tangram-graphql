@@ -30,13 +30,13 @@ export default class MongoTangram extends Tangram {
     return model.count(args);
   }
 
-  addOne(schema, { _set }) {
-    if (!_set) {
+  addOne(schema, { INPUT }) {
+    if (!INPUT) {
       throw new Error(`${schema}.add${schema} cant not be empty input.`);
     }
-    schema.checkData(_set);
+    schema.checkData(INPUT);
     const Model = this.getModel(schema);
-    const model = new Model(_set);
+    const model = new Model(INPUT);
     return model.save().then(() => {
       return idFix(model);
     });
@@ -55,14 +55,15 @@ export default class MongoTangram extends Tangram {
   }
 
   /**
-   * @param {Schema} schema
+   * @param {Schema|String} schema
    * @returns {Object}
    */
   getMongooseSchema(schema) {
+    schema = this.getSchema(schema);
     const Schema = this._mongoose.Schema;
     const { ObjectId, Buffer } = Schema.Types;
     const { refs } = schema;
-    const typeMap = { String, Number, Boolean, Array, Buffer, ObjectId, Date };
+    const typeMap = { String, Int: Number, Float: Number, Boolean, Array, Buffer, ObjectId, Date };
     return mapValues(schema.struct, (item) => {
       const res = replaceObj(item, {
         max: 'maxlength',
@@ -102,7 +103,6 @@ export default class MongoTangram extends Tangram {
     if (mongoose.models[schema]) {
       return mongoose.models[schema];
     }
-    const schemaObj = typeof schema === 'string' ? this._schemas.find(item => item.name === schema) : schema;
-    return mongoose.model(schemaObj.toString(), this.getMongooseSchema(schemaObj));
+    return mongoose.model(schema.toString(), this.getMongooseSchema(schema));
   }
 }

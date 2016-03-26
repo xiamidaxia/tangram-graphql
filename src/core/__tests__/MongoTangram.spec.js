@@ -10,7 +10,7 @@ describe('MongoTangram', () => {
   function addUser() {
     return tangram.exec('User', `
       mutation {
-        addUser(_set: { name: "newUser", age: 22 }) {
+        addUser(INPUT: { name: "newUser", age: 22 }) {
           id
           name
         }
@@ -19,7 +19,7 @@ describe('MongoTangram', () => {
   }
   it('should be as mongoose schema.', () => {
     const { ObjectId } = mongoose.Schema.Types;
-    expect(tangram.getMongooseSchema(userSchema)).to.eql({
+    expect(tangram.getMongooseSchema('User')).to.eql({
       name: { type: String, required: true, maxlength: 20, minlength: 5 },
       age: { type: Number, required: true },
       friends: { type: [{ type: ObjectId, ref: 'User' }], required: false, default: [] },

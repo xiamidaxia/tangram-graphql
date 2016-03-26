@@ -1,7 +1,7 @@
 import { VARIABLE_REG } from '../common/constants';
 import { mapValues } from '../common/utils';
 const SCHEMA_TYPES = ['Collection', 'Store'];
-const baseType = ['String', 'Number', 'Buffer', 'Boolean', 'Date'];
+const baseType = ['String', 'Int', 'Float', 'Buffer', 'Boolean', 'Date'];
 let _count = 0;
 function normalizeName(name) {
   return name[0].toUpperCase() + name.slice(1);
@@ -76,9 +76,10 @@ export default class Schema {
     this.name = normalizeName(initData.name);
     this.id = _count ++;
     this.type = initData.type;
-    this.refs = refs;
-    this.refs[this.name] = this;
+    this.refs = { ...refs, [this.name]: this };
     this.struct = this._normalizeStruct(initData.struct);
+    this._fragments = initData.fragments;
+    this._actions = initData.actions;
   }
   /**
    * @param {Object} struct
@@ -111,6 +112,15 @@ export default class Schema {
         }
       });
     }
+  }
+  getActionQL(name) {
+    if (!this._actions[name]) {
+      throw new Error(`Schema ${this} unknown action: ${name}`);
+    }
+    if (/[fF]ragment/.test(this._actions[name])) {
+      return this._fragments + '\n' + this._actions[name];
+    }
+    return this._actions[name];
   }
   toString() {
     return this.name;

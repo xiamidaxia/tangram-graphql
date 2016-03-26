@@ -14,14 +14,17 @@ import {
 } from 'graphql';
 import GraphQlBuffer from '../types/GraphQLBuffer';
 import GraphQlDate from '../types/GraphQLDate';
-import { mapValues, getGrapQLArgsStr } from '../common/utils';
+import ArrayInputType from '../types/ArrayInputType';
+import NumberInputType from '../types/NumberInputType';
+import NumberQueryType from '../types/NumberQueryType';
+import ArrayQueryType from '../types/ArrayQueryType';
+import { mapValues } from '../common/utils';
 import Schema from './Schema';
-import queryArg from '../types/queryArg';
 const scalarTypes = {
   String: GraphQLString,
-  Number: GraphQLFloat,
   Boolean: GraphQLBoolean,
-  Array: GraphQLList,
+  Int: GraphQLInt,
+  Float: GraphQLFloat,
   Buffer: GraphQlBuffer,
   ObjectId: GraphQLID,
   Date: GraphQlDate,
@@ -31,10 +34,8 @@ const scalarTypes = {
  */
 export default class Tangram {
   constructor(schemas = []) {
-    schemas.forEach(schema => {
-      if (! (schema instanceof Schema)) {
-        throw new Error(`${schema} must instance of Schema.`);
-      }
+    schemas = schemas.map(schema => {
+      return schema instanceof Schema ? schema : new Schema(schema);
     });
     this._schemas = schemas;
     this._graphQLSchemas = [];
@@ -108,7 +109,7 @@ export default class Tangram {
    */
   getSchema(schema) {
     const _schema = typeof schema === 'string' ? this._schemas.find(s => s.name === schema) : schema;
-    if (!_schema) throw new Error(`Unknow schema ${schema}`);
+    if (!_schema) throw new Error(`Unknown schema "${schema}"`);
     return _schema;
   }
 
@@ -131,6 +132,7 @@ export default class Tangram {
   _createGraphQLSchema(schema) {
     const { name } = schema;
     const graphQLType = this._getGraphQLType(schema);
+    const setType = this._getSetType(schema);
     const inputType = this._getInputType(schema);
     const nameLowerCase = name[0].toLowerCase() + name.slice(1);
     const nameUpperCase = name[0].toUpperCase() + name.slice(1);
@@ -161,7 +163,7 @@ export default class Tangram {
         fields: {
           ['add' + nameUpperCase]: {
             type: graphQLType,
-            args: { _set: { type: inputType } },
+            args: { INPUT: { type: inputType } },
             resolve: (_, args) => this.addOne(schema, args),
           },
           ['delete' + nameUpperCase]: {
@@ -176,12 +178,12 @@ export default class Tangram {
           },
           ['update' + nameUpperCase]: {
             type: graphQLType,
-            args: { ...args, _set: { type: inputType } },
+            args: { ...args, INPUT: { type: setType } },
             resolve: (_, args) => this.updateOne(schema, args),
           },
           ['update' + nameUpperCase + 's']: {
             type: new GraphQLList(graphQLType),
-            args: { ...args, _set: { type: inputType } },
+            args: { ...args, INPUT: { type: setType } },
             resolve: (_, args) => this.updateList(schema, args),
           },
         },
@@ -196,7 +198,7 @@ export default class Tangram {
     return res;
   }
 
-  _getInputType(schema) {
+  _getInputType(schema, sick) {
     const { name, refs, struct } = schema;
     return new GraphQLInputObjectType({
       name: name + 'Input',
@@ -212,12 +214,36 @@ export default class Tangram {
           } else {
             throw new Error(`Schema ${schema} relies on ${typeStr}.`);
           }
-          return required ? { type: new GraphQLNonNull(type), defaultValue } : { type, defaultValue };
+          return (!sick && required) ? { type: new GraphQLNonNull(type), defaultValue } : { type, defaultValue };
         });
       },
     });
   }
-
+  _getSetType(schema) {
+    const inputType = this._getInputType(schema, true);
+    const { name, struct } = schema;
+    return new GraphQLInputObjectType({
+      name: name + 'Set',
+      fields: () => {
+        const setFields = inputType._typeConfig.fields();
+        mapValues(struct, ({ type: typeStr }, key) => {
+          let type;
+          if (typeStr === 'Array') {
+            type = ArrayInputType;
+          } else if (typeStr === 'Int' || typeStr === 'Float') {
+            type = NumberInputType;
+          }
+          if (type) {
+            setFields['_' + key] = {
+              type,
+              description: `Special input params of ${typeStr}`,
+            };
+          }
+        });
+        return setFields;
+      },
+    });
+  }
   _getGraphQLType(schema) {
     const { name, refs, struct } = schema;
     const graphQLType = new GraphQLObjectType({
@@ -234,13 +260,15 @@ export default class Tangram {
         return mapValues(struct, ({ type: typeStr, required, ref }, key) => {
           let type;
           let resolve;
-          if (typeStr === 'Array' && ref) {
+          if (typeStr === 'Array') {
             if (scalarTypes[ref]) {
               type = new GraphQLList(scalarTypes[ref]);
             } else if (refs[ref]) {
               const refType = ref === name ? graphQLType : this._getGraphQLInfo(refs[ref]).graphQLType;
               type = new GraphQLList(refType);
-              resolve = parent => this.queryById(refs[ref], String(parent[key]));
+              resolve = parent => {
+                return parent[key] && parent[key].map(val => this.queryById(refs[ref], String(val)));
+              };
             } else {
               throw new Error(`Schema ${schema} relies on ${ref}.`);
             }
@@ -262,40 +290,37 @@ export default class Tangram {
 
   _getArgs(schema) {
     const args = {};
-    const numFields = [];
     args.id = {
-      type: queryArg('id', 'ID'),
+      type: GraphQLID,
       description: `The ID of ${schema}`,
     };
     Object.keys(schema.struct).forEach((key) => {
       const sch = schema.struct[key];
       const typeName = sch.type;
       const ref = schema.refs[sch.ref] || schema.refs[sch.type];
+      if (typeName === 'Array') {
+        args['_' + key] = {
+          type: ArrayQueryType,
+          description: `Array query type of ${schema}.${key}`,
+        };
+      } else if (typeName === 'Int' || typeName === 'Float') {
+        args['_' + key] = {
+          type: NumberQueryType,
+          description: `Number query type of ${schema}.${key}`,
+        };
+      }
       if (scalarTypes[typeName]) {
         args[key] = {
-          type: queryArg(key, typeName),
+          type: scalarTypes[typeName],
+          description: `The ${typeName} of ${schema}.${key}`,
         };
-        if (typeName === 'Number') {
-          numFields.push(key);
-        }
       } else if (ref) {
         args[key] = {
-          type: queryArg(key, 'ID'),
+          type: GraphQLID,
+          description: `The ref "${ref}" of ${schema}`,
         };
       }
     });
-    // number fields
-    if (numFields.length > 0) {
-      args.INC = {
-        type: new GraphQLInputObjectType({
-          name: `IncArg`,
-          fields: numFields.reduce((obj, key) => {
-            obj[key] = { type: GraphQLFloat };
-            return obj;
-          }, {}),
-        }),
-      };
-    }
     return args;
   }
 
@@ -306,15 +331,20 @@ export default class Tangram {
    * @returns {Promise}
    */
   exec(schemaName, graphQLStr, params = {}) {
-    mapValues(params, (val, key) => {
-      graphQLStr = graphQLStr
-        .replace(new RegExp('\\$' + key, 'g'), getGrapQLArgsStr(val));
-    });
-    return graphql(this.getGraphQLSchema(schemaName), graphQLStr).then((resData) => {
+    return graphql(this.getGraphQLSchema(schemaName), graphQLStr, null, params).then((resData) => {
       if (resData.errors && resData.errors.length !== 0) {
         throw resData.errors[0];
       }
       return resData.data;
     });
+  }
+
+  execAction(action, params = {}) {
+    const [schemaName, actionName] = action.split('.');
+    const schema = this.getSchema(schemaName);
+    return this.exec(schemaName, schema.getActionQL(actionName), params);
+  }
+
+  createArryType() {
   }
 }

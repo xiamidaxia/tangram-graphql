@@ -1,7 +1,20 @@
 import Tangram from '../core/Tangram';
 import Schema from '../core/Schema';
 import { UserSchema, TodoSchema } from './schemas';
-
+function filter(arr, args) {
+  return arr.filter((item) => {
+    for (const i in args) {
+      if (i === 'id') {
+        if (String(item[i]) !== String(args[i])) {
+          return false;
+        }
+      } else if (item[i] !== args[i]) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
 export const users = [{
   id: '1',
   name: 'Nick',
@@ -10,11 +23,13 @@ export const users = [{
 }, {
   id: '2',
   name: 'Jimmy',
-  age: 21,
+  age: 20,
+  friends: [],
 }, {
   id: '3',
   name: 'Jack',
   age: 20,
+  friends: ['1', '2'],
 }];
 export const todos = [{
   id: 0,
@@ -46,31 +61,30 @@ export const todos = [{
   user: '2',
 }];
 
+function getData(schema) {
+  switch (schema.name) {
+    case 'User':
+      return users;
+    case 'Todo':
+      return todos;
+  }
+}
+
 class TodoTangram extends Tangram {
   queryById(schema, id) {
-    switch (schema.name) {
-      case 'User':
-        return users.find(item => String(item.id) === id);
-      case 'Todo':
-        return todos.find(item => String(item.id) === id);
-    }
+    const data = getData(schema);
+    return data.find(item => String(item.id) === id);
   }
   queryOne(schema, args) {
-    if (args.id) return this.queryById(schema, args.id);
-    switch (schema.name) {
-      case 'User':
-        return users[0];
-      case 'Todo':
-        return todos[0];
-    }
+    const data = getData(schema);
+    return filter(data, args)[0];
   }
   queryList(schema, args) {
-    if (args.id) return [this.queryById(schema, args.id)];
     switch (schema.name) {
       case 'User':
-        return users;
+        return filter(users, args);
       case 'Todo':
-        return todos;
+        return filter(todos, args);
     }
   }
   queryCount(schema) {
@@ -81,8 +95,16 @@ class TodoTangram extends Tangram {
         return todos.length;
     }
   }
+  updateOne(schema, params) {
+    console.log(params.INPUT);
+    const data = getData(schema);
+    const INPUT = params.INPUT;
+    delete params.INPUT;
+    const finded = filter(data, params)[0];
+    return { ...finded, ...INPUT };
+  }
   addOne(schema, args) {
-    const input = args._set;
+    const input = args.INPUT;
     input.createAt = (new Date).toJSON();
     input.id = todos.length;
     todos.push(input);

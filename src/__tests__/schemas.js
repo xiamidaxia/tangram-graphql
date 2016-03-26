@@ -3,23 +3,72 @@ const UserSchema = {
   type: 'Collection',
   struct: {
     name: { type: 'String!', max: 20, min: 5 },
-    age: { type: 'Number!' },
+    age: { type: 'Int!' },
     friends: { type: '[User]', defaultValue: [] },
   },
+  fragments: `
+    fragment userFragment on User {
+      id
+      name
+      age
+    }
+  `,
   actions: {
-    addUser: `mutation {
-      addUser(_input: $form) {
-        id
-        name
-        users {
+    queryUserById: `
+      query($userId: ID!){
+        user(id: $userId) {
+          ...userFragment
+          friends {
+            name
+          }
         }
       }
-    }`,
-    removeUser: ``,
-    getFriends: `{
-    }`,
-    addFriends: `mutation updateUser(_id: $id, ) {
-    }`,
+    `,
+    queryUsersByAge: `
+      query($age: Int!) {
+        users(age: $age) {
+          ...userFragment
+          friends {
+            ...userFragment
+          }
+        }
+      }
+    `,
+    changeUserName: `
+      mutation($userId: ID!, $newName: String!) {
+        updateUser(id: $userId, INPUT: {name: $newName}) {
+          id
+          name
+        }
+      }
+    `,
+    addFriends: `
+      mutation($userId: ID!, $friends: [ID]!){
+        updateUser(id: $userId, INPUT: { _friends: { concat: $friends } }) {
+          id
+          friends {
+            id
+          }
+        }
+      }
+    `,
+    addUser: `
+      mutation($userInput: User) {
+        addUser(INPUT: $userInput) {
+          ...userFragment
+          fiends {
+            ...userFragment
+          }
+        }
+      }
+    `,
+    deleteUser: `
+      mutation($userId: ID) {
+        deleteUser(id: $userId) {
+          id
+        }
+      }
+    `,
   },
 };
 
@@ -31,12 +80,11 @@ const TodoSchema = {
     name: { type: 'String!', trim: true },
     completed: { type: 'Boolean', defaultValue: false },
     user: { type: 'User!' },
-    createAt: { type: 'Date', defaultValue: 'DATE_NOW' },
-    num: { type: 'Number' },
+    createAt: { type: 'Date' },
   },
   actions: {
     queryTodosByUser: `
-      query {
+      query($userId: ID) {
         todos(user: $userId) {
           id
           name

@@ -2,51 +2,49 @@ import todoTangram from './todoTangram';
 import { expect } from 'chai';
 // import mongoose from 'mongoose';
 describe('Tangram graphql', () => {
-  it('query list.', async() => {
-    const query = `
-      query {
-        users {
-          name
-        }
-      }
-    `;
-    const expected = {
-      users: [
-        { 'name': 'Nick' },
-        { 'name': 'Jimmy' },
-        { 'name': 'Jack' },
-      ],
-    };
-    expect(await todoTangram.exec('User', query)).to.eql(expected);
-  });
-  it('query firstOne.', async() => {
-    expect(await todoTangram.exec('User', `
-      query {
-        user {
-          name
-        }
-      }
-    `)).to.eql({ user: { 'name': 'Nick' } });
-  });
   it('query by id', async() => {
-    expect(await todoTangram.exec('User', `
-      query {
-        user(id: "3") {
-          name
-        }
-      }
-    `)).to.eql({ user: { 'name': 'Jack' } });
+    const expected = {
+      user: {
+        id: '0_3',
+        name: 'Jack',
+        age: 20,
+        friends: [{ name: 'Nick' }, { name: 'Jimmy' }],
+      },
+    };
+    expect(await todoTangram.execAction('User.queryUserById', {
+      userId: '3',
+    })).to.eql(expected);
   });
   it('query empty', async() => {
-    expect(await todoTangram.exec('User', `
-      query {
-        user(id: "unknown id") {
-          name
-        }
-      }
-    `)).to.eql({ user: null });
+    expect(await todoTangram.execAction('User.queryUserById', {
+      userId: 'Unknow id',
+    })).to.eql({ user: null });
   });
-  it('query nested.', async() => {
+  it('query params required', async() => {
+    return todoTangram.execAction('User.queryUserById').catch((e) => {
+      expect(e).to.match(/required type "ID!"/);
+    });
+  });
+  it('query by params', async() => {
+    const result = {
+      users: [
+        { name: 'Jimmy', age: 20 },
+        { name: 'Jack', age: 20 },
+      ],
+    };
+    expect(await todoTangram.execAction('User.queryUsersByAge', {
+      age: 20,
+    })).to.containSubset(result);
+  });
+  it('mutation set fields', async() => {
+    expect(await todoTangram.execAction('User.changeUserName', {
+      userId: '1',
+      newName: 'newName',
+    })).to.eql({
+      updateUser: { id: '0_1', name: 'newName' },
+    });
+  });
+  it('query Todo reference User.', async() => {
     expect(await todoTangram.exec('Todo', `
       query {
         todo(id: 2) {
@@ -61,7 +59,7 @@ describe('Tangram graphql', () => {
   it('mutation add with param', async() => {
     expect(await todoTangram.exec('Todo', `
       mutation {
-        addTodo(_set: $input) {
+        addTodo(INPUT: { name: "JackTodo", user: 3 }) {
           id
           name
           user {
@@ -69,8 +67,6 @@ describe('Tangram graphql', () => {
           }
         }
       }
-    `, {
-      input: { name: 'JackTodo', user: 3 },
-    })).to.eql({ addTodo: { id: '1_4', name: 'JackTodo', user: { name: 'Jack' } } });
+    `)).to.eql({ addTodo: { id: '1_4', name: 'JackTodo', user: { name: 'Jack' } } });
   });
 });
