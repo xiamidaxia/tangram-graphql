@@ -63,7 +63,7 @@ export function autoBind(target, keys) {
 export function getGrapQLArgsStr(value) {
   function parse(val) {
     if (typeof val === 'string') {
-      return `"${val}"`;
+      return `"${val.replace(/"/g, '\\"')}"`;
     }
     if (typeof val === 'number') {
       return String(val);

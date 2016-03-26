@@ -44,6 +44,8 @@ describe('Utils', () => {
     const objStr = '{str:"str",num:33,arr:["arr1","arr2",3]}';
     check(3, '3');
     check('str', '"str"');
+    check('quote"quote', '"quote\\"quote"');
+    check('quote\'quote', '"quote\'quote"');
     check({}, '{}');
     check([], '[]');
     check(obj, objStr);
