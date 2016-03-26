@@ -1,9 +1,16 @@
 import Tangram from './Tangram';
 import { replaceObj, mapValues } from '../common/utils';
 const idFix = obj => (obj.id = obj._id) && obj;
+/**
+ * _sort, _limit, _skip, _page, _or
+ * $gt, $lt, $gte, $lte, $ne $size $slice
+ * $exists, $all, $not, $in, $nin
+ * $set $unset $push $pop $inc
+ * @class MongoTangram
+ */
 export default class MongoTangram extends Tangram {
-  constructor(schemaMap, mongoose) {
-    super(schemaMap);
+  constructor(schemas, mongoose) {
+    super(schemas);
     this._mongoose = mongoose;
   }
 
@@ -99,7 +106,7 @@ export default class MongoTangram extends Tangram {
     if (mongoose.models[schema]) {
       return mongoose.models[schema];
     }
-    const schemaObj = typeof schema === 'string' ? this._schemaMap[schema] : schema;
+    const schemaObj = typeof schema === 'string' ? this._schemas.find(item => item.name === schema) : schema;
     return mongoose.model(schemaObj.toString(), this.getMongooseSchema(schemaObj));
   }
 }

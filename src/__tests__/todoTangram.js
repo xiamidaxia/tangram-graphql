@@ -89,7 +89,7 @@ class TodoTangram extends Tangram {
     return input;
   }
 }
-const User = new Schema(UserSchema);
-const Todo = new Schema(TodoSchema, { User });
+export const User = new Schema(UserSchema);
+export const Todo = new Schema(TodoSchema, { User });
 // $inc $push $pop 插入
-export default new TodoTangram({ User, Todo });
+export default new TodoTangram([User, Todo]);

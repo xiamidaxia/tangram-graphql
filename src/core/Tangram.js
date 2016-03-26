@@ -14,7 +14,8 @@ import {
 } from 'graphql';
 import GraphQlBuffer from '../types/GraphQLBuffer';
 import GraphQlDate from '../types/GraphQLDate';
-import { mapValues } from '../common/utils';
+import { mapValues, getGrapQLArgsStr } from '../common/utils';
+import Schema from './Schema';
 import queryArg from '../types/queryArg';
 
 const scalarTypes = {
@@ -32,8 +33,13 @@ const scalarTypes = {
  * // todo: INC, ORDER_BY, PAGE, lt, gt, gte, lte, in, or, nin, not
  */
 export default class Tangram {
-  constructor(schemaMap = {}) {
-    this._schemaMap = schemaMap;
+  constructor(schemas = []) {
+    schemas.forEach(schema => {
+      if (! (schema instanceof Schema)) {
+        throw new Error(`${schema} must instance of Schema.`);
+      }
+    });
+    this._schemas = schemas;
     this._graphQLSchemas = [];
   }
   queryById() {}
@@ -63,27 +69,35 @@ export default class Tangram {
     return String(schema.id + '_' + id);
   }
   /**
-   * @param {String} id
+   * @param {String} globalId
    * @returns {string}
    */
-  fromGlobalId(id) {
-    return id.replace(/^\d+\_/, '');
+  fromGlobalId(globalId) {
+    return globalId.replace(/^\d+\_/, '');
   }
   /**
    * @param {Schema|String} schema
    * @returns {GraphQLSchema}
    */
   getGraphQLSchema(schema) {
-    return this._getSchemaInfo(schema).graphQLSchema;
+    return this._getGraphQLInfo(schema).graphQLSchema;
+  }
+  /**
+   * @param {Schema|String} schema
+   * @returns {Schema}
+   */
+  getSchema(schema) {
+    const _schema = typeof schema === 'string' ? this._schemas.find(s => s.name === schema) : schema;
+    if (!_schema) throw new Error(`Unknow schema ${schema}`);
+    return _schema;
   }
   /**
    * @param {Schema|String} schema
    * @returns {{schema: Schema, graphQLSchema, graphQLType}}
    * @private
    */
-  _getSchemaInfo(schema) {
-    const _schema = typeof schema === 'string' ? this._schemaMap[schema] : schema;
-    if (!_schema) throw new Error(`Unknow schema ${schema}`);
+  _getGraphQLInfo(schema) {
+    const _schema = this.getSchema(schema);
     return this._graphQLSchemas.find(obj => obj.schema === _schema)
       || this._createGraphQLSchema(_schema);
   }
@@ -200,7 +214,7 @@ export default class Tangram {
             if (scalarTypes[ref]) {
               type = new GraphQLList(scalarTypes[ref]);
             } else if (refs[ref]) {
-              const refType = ref === name ? graphQLType : this._getSchemaInfo(refs[ref]).graphQLType;
+              const refType = ref === name ? graphQLType : this._getGraphQLInfo(refs[ref]).graphQLType;
               type = new GraphQLList(refType);
               resolve = parent => this.queryById(refs[ref], String(parent[key]));
             } else {
@@ -209,7 +223,7 @@ export default class Tangram {
           } else if (scalarTypes[typeStr]) {
             type = scalarTypes[typeStr];
           } else if (refs[typeStr]) {
-            const refType = ref === name ? graphQLType : this._getSchemaInfo(refs[typeStr]).graphQLType;
+            const refType = ref === name ? graphQLType : this._getGraphQLInfo(refs[typeStr]).graphQLType;
             type = refType;
             resolve = parent => this.queryById(refs[typeStr], String(parent[key]));
           } else {
@@ -263,9 +277,13 @@ export default class Tangram {
   /**
    * @param {String} schemaName - schema name
    * @param {String} graphQLStr - graphql string
+   * @param {Object} params
    * @returns {Promise}
    */
-  exec(schemaName, graphQLStr) {
+  exec(schemaName, graphQLStr, params = {}) {
+    mapValues(params, (val, key) => {
+      graphQLStr = graphQLStr.replace(new RegExp('\\$' + key, 'g'), getGrapQLArgsStr(val));
+    });
     return graphql(this.getGraphQLSchema(schemaName), graphQLStr).then((resData) => {
       if (resData.errors && resData.errors.length !== 0) {
         throw resData.errors[0];

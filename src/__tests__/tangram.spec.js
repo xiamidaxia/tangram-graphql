@@ -1,24 +1,7 @@
 import todoTangram from './todoTangram';
 import { expect } from 'chai';
-import { graphql } from 'graphql';
 // import mongoose from 'mongoose';
 describe('Tangram graphql', () => {
-  const queryUser = (qStr) => {
-    return graphql(todoTangram.getGraphQLSchema('User'), qStr).then((resData) => {
-      if (resData.errors && resData.errors.length !== 0) {
-        throw resData.errors[0];
-      }
-      return resData.data;
-    });
-  };
-  const queryTodo = (qStr) => {
-    return graphql(todoTangram.getGraphQLSchema('Todo'), qStr).then((resData) => {
-      if (resData.errors && resData.errors.length !== 0) {
-        throw resData.errors[0];
-      }
-      return resData.data;
-    });
-  };
   it('query list.', async() => {
     const query = `
       query {
@@ -34,10 +17,10 @@ describe('Tangram graphql', () => {
         { 'name': 'Jack' },
       ],
     };
-    expect(await queryUser(query)).to.eql(expected);
+    expect(await todoTangram.exec('User', query)).to.eql(expected);
   });
   it('query firstOne.', async() => {
-    expect(await queryUser(`
+    expect(await todoTangram.exec('User', `
       query {
         user {
           name
@@ -46,7 +29,7 @@ describe('Tangram graphql', () => {
     `)).to.eql({ user: { 'name': 'Nick' } });
   });
   it('query by id', async() => {
-    expect(await queryUser(`
+    expect(await todoTangram.exec('User', `
       query {
         user(id: "3") {
           name
@@ -55,7 +38,7 @@ describe('Tangram graphql', () => {
     `)).to.eql({ user: { 'name': 'Jack' } });
   });
   it('query empty', async() => {
-    expect(await queryUser(`
+    expect(await todoTangram.exec('User', `
       query {
         user(id: "unknown id") {
           name
@@ -64,7 +47,7 @@ describe('Tangram graphql', () => {
     `)).to.eql({ user: null });
   });
   it('query nested.', async() => {
-    expect(await queryTodo(`
+    expect(await todoTangram.exec('Todo', `
       query {
         todo(id: 2) {
           name
@@ -75,10 +58,10 @@ describe('Tangram graphql', () => {
       }
     `)).to.eql({ todo: { name: 'NickTodo3', user: { name: 'Nick' } } });
   });
-  it('mutation add', async() => {
-    expect(await queryTodo(`
+  it('mutation add with param', async() => {
+    expect(await todoTangram.exec('Todo', `
       mutation {
-        addTodo(INPUT: {name: "JackTodo", user: 3}) {
+        addTodo(INPUT: $input) {
           id
           name
           user {
@@ -86,6 +69,8 @@ describe('Tangram graphql', () => {
           }
         }
       }
-    `)).to.eql({ addTodo: { id: '1_4', name: 'JackTodo', user: { name: 'Jack' } } });
+    `, {
+      input: { name: 'JackTodo', user: 3 },
+    })).to.eql({ addTodo: { id: '1_4', name: 'JackTodo', user: { name: 'Jack' } } });
   });
 });

@@ -5,7 +5,7 @@ import Schema from '../Schema';
 import { UserSchema } from '../../__tests__/schemas';
 describe('MongoTangram', () => {
   const userSchema = new Schema(UserSchema);
-  const tangram = new MongoTangram({ User: userSchema }, mongoose);
+  const tangram = new MongoTangram([userSchema], mongoose);
   const UserModel = tangram.getModel('User');
   function addUser() {
     return tangram.exec('User', `

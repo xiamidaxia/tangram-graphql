@@ -46,6 +46,9 @@ export default class Schema {
           mapValues(initData.struct, (obj) => {
             if (!obj.type) throw new Error('Schema struct need a type.');
             const type = obj.type.replace(/[!\[\]]/g, '');
+            if (obj.name === 'id' || !VARIABLE_REG.test(obj.name)) {
+              throw new Error(`Schema struct name illegal: ${obj.name}.`);
+            }
             if (initData.name !== type && !baseType.includes(type) && !refs[type]) {
               throw new Error(`Schema refs ${type} is required.`);
             }

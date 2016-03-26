@@ -7,7 +7,13 @@ const UserSchema = {
     friends: { type: '[User]', defaultValue: [] },
   },
   actions: {
-    addUser: `mutation createUser() {
+    addUser: `mutation {
+      addUser(_input: $form) {
+        id
+        name
+        users {
+        }
+      }
     }`,
     removeUser: ``,
     getFriends: `{
@@ -27,6 +33,22 @@ const TodoSchema = {
     user: { type: 'User!' },
     createAt: { type: 'Date', defaultValue: 'DATE_NOW' },
     num: { type: 'Number' },
+  },
+  actions: {
+    queryTodosByUser: `
+      query {
+        todos(user: $userId) {
+          id
+          name
+          completed
+          user {
+            id
+            name
+            age
+          }
+        }
+      }
+    `,
   },
 };
 

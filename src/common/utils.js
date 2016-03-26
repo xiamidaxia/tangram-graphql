@@ -50,3 +50,20 @@ export function replaceObj(obj, keyMap = {}) {
   }
   return newObj;
 }
+
+export function autoBind(target, keys) {
+  keys.forEach((key) => {
+    target[key] = target[key].bind(target);
+  });
+}
+/**
+ * @param {*} val
+ * @return {String}
+ */
+export function getGrapQLArgsStr(val) {
+  // todo fix array
+  return JSON.stringify(val)
+    .replace(/\{\s*"/g, '{')
+    .replace(/"\s*\:/g, ':')
+    .replace(/,\s*"/g, ',');
+}
