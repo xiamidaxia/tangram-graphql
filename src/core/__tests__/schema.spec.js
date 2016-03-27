@@ -29,12 +29,12 @@ describe('Schema', () => {
   it('should refs required', () => {
     expect(() => {
       return new Schema({ name: 'abc', type: 'Collection', struct: {}, refs: ['User'] });
-    }).to.throw(/User is required/);
+    }).to.throw(/depends on User/);
     expect(() => {
       return new Schema({ name: 'abc', type: 'Collection', struct: { user: { type: 'User' } } });
-    }).to.throw(/User is required/);
+    }).to.throw(/depends on User/);
     expect(() => {
       return new Schema({ name: 'abc', type: 'Collection', struct: { user: { type: '[User]!' } } });
-    }).to.throw(/User is required/);
+    }).to.throw(/depends on User/);
   });
 });

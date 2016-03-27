@@ -1,11 +1,9 @@
 import mongoose from 'mongoose';
 import { expect } from 'chai';
 import MongoTangram from '../MongoTangram';
-import Schema from '../Schema';
 import { UserSchema } from '../../__tests__/schemas';
 describe('MongoTangram', () => {
-  const userSchema = new Schema(UserSchema);
-  const tangram = new MongoTangram([userSchema], mongoose);
+  const tangram = new MongoTangram([UserSchema], { mongoose });
   const UserModel = tangram.getModel('User');
   function addUser() {
     return tangram.exec('User', `
@@ -44,7 +42,7 @@ describe('MongoTangram', () => {
   });
   it('should add one success by graphql.', async() => {
     const data = await addUser();
-    expect(data.addUser.id).to.match(new RegExp(`^${userSchema.id}_.+`));
+    expect(data.addUser.id).to.match(new RegExp(`^${tangram.getSchema('User').id}_.+`));
     expect(data.addUser.name).to.eql('newUser');
   });
   it('should query count success.', async() => {

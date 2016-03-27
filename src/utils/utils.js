@@ -1,3 +1,4 @@
+const toString = Object.prototype.toString;
 /**
  * Applies a function to every key-value pair inside an object.
  *
@@ -77,4 +78,26 @@ export function getGrapQLArgsStr(value) {
     return '{' + res.join(',') + '}';
   }
   return parse(value);
+}
+
+export const isFunction = arg => toString.call(arg) === '[object Function]';
+
+export function hooksMerge(hooks1 = {}, hooks2 = {}) {
+  return {
+    pre: [...hooks1.pre || [], ...hooks2.pre || []],
+    after: [...hooks1.after || [], ...hooks2.after || []],
+  };
+}
+export function idFixed(obj) {
+  if (obj && obj.id) {
+    obj.id = obj._id;
+  }
+  return obj;
+}
+
+export function getValByKeys(obj, keys = []) {
+  return keys.reduce((obj, key) => {
+    if (obj === null || obj === undefined) return null;
+    return obj[key];
+  }, obj);
 }

@@ -18,7 +18,7 @@ import ArrayInputType from '../types/ArrayInputType';
 import NumberInputType from '../types/NumberInputType';
 import NumberQueryType from '../types/NumberQueryType';
 import ArrayQueryType from '../types/ArrayQueryType';
-import { mapValues } from '../common/utils';
+import { mapValues, Middleware, hooksMerge, isFunction } from '../utils';
 import Schema from './Schema';
 const scalarTypes = {
   String: GraphQLString,
@@ -33,14 +33,48 @@ const scalarTypes = {
  * @class Tangram
  */
 export default class Tangram {
-  constructor(schemas = []) {
-    schemas = schemas.map(schema => {
-      return schema instanceof Schema ? schema : new Schema(schema);
+  constructor(schemas = [], opts = {}) {
+    this._schemas = {};
+    this._hooks = {};
+    if (opts.hooks) {
+      mapValues(opts.hooks, (hook, name) => {
+        this.addHooks(name, hook);
+      });
+    }
+    schemas.forEach((schema) => {
+      this._addSchema(schema, schemas);
     });
-    this._schemas = schemas;
-    this._graphQLSchemas = [];
+    this._graphQLSchemas = {};
   }
 
+  /**
+   * @param {Object} schema
+   * @param {Array} schemas
+   * @return {Schema}
+   * @private
+   */
+  _addSchema(schema, schemas) {
+    if (this._schemas[schema.name]) {
+      return this._schemas[schema.name];
+    }
+    if (schema instanceof Schema) {
+      this._schemas[schema] = schema;
+      return schema;
+    }
+    const deps = {};
+    if (schema.refs && schema.refs.length !== 0) {
+      schema.refs.forEach((str) => {
+        if (this._schemas[str]) {
+          deps[str] = this._schemas[str];
+        } else if (schemas[str]) {
+          deps[str] = this._addSchema(schemas[str], schemas);
+        } else {
+          throw new Error(`Miss schema ${str}.`);
+        }
+      });
+    }
+    this._schemas[schema.name] = new Schema(schema, deps);
+  }
   queryById() {
   }
 
@@ -104,11 +138,11 @@ export default class Tangram {
   }
 
   /**
-   * @param {Schema|String} schema
+   * @param {String} schema
    * @returns {Schema}
    */
   getSchema(schema) {
-    const _schema = typeof schema === 'string' ? this._schemas.find(s => s.name === schema) : schema;
+    const _schema = this._schemas[schema];
     if (!_schema) throw new Error(`Unknown schema "${schema}"`);
     return _schema;
   }
@@ -120,8 +154,7 @@ export default class Tangram {
    */
   _getGraphQLInfo(schema) {
     const _schema = this.getSchema(schema);
-    return this._graphQLSchemas.find(obj => obj.schema === _schema)
-      || this._createGraphQLSchema(_schema);
+    return this._graphQLSchemas[_schema] || this._createGraphQLSchema(_schema);
   }
 
   /**
@@ -144,17 +177,17 @@ export default class Tangram {
           [nameLowerCase]: {
             type: graphQLType,
             args,
-            resolve: (_, args) => this.queryOne(schema, args),
+            resolve: (_, args) => this.resolve('queryOne', schema, args),
           },
           [nameLowerCase + 's']: {
             type: new GraphQLList(graphQLType),
             args,
-            resolve: (_, args) => this.queryList(schema, args),
+            resolve: (_, args) => this.resolve('queryList', schema, args),
           },
           [nameLowerCase + 'Count']: {
             type: GraphQLInt,
             args,
-            resolve: (_, args) => this.queryCount(schema, args),
+            resolve: (_, args) => this.resolve('queryCount', schema, args),
           },
         },
       }),
@@ -164,41 +197,40 @@ export default class Tangram {
           ['add' + nameUpperCase]: {
             type: graphQLType,
             args: { INPUT: { type: inputType } },
-            resolve: (_, args) => this.addOne(schema, args),
+            resolve: (_, args) => this.resolve('addOne', schema, args),
           },
           ['delete' + nameUpperCase]: {
             type: graphQLType,
             args,
-            resolve: (_, args) => this.deleteOne(schema, args),
+            resolve: (_, args) => this.resolve('deleteOne', schema, args),
           },
           ['delete' + nameUpperCase + 's']: {
             type: new GraphQLList(graphQLType),
             args,
-            resolve: (_, args) => this.deleteList(schema, args),
+            resolve: (_, args) => this.resolve('deleteList', schema, args),
           },
           ['update' + nameUpperCase]: {
             type: graphQLType,
-            args: { ...args, INPUT: { type: setType } },
-            resolve: (_, args) => this.updateOne(schema, args),
+            args: { ...args, SET: { type: setType } },
+            resolve: (_, args) => this.resolve('updateOne', schema, args),
           },
           ['update' + nameUpperCase + 's']: {
             type: new GraphQLList(graphQLType),
-            args: { ...args, INPUT: { type: setType } },
-            resolve: (_, args) => this.updateList(schema, args),
+            args: { ...args, SET: { type: setType } },
+            resolve: (_, args) => this.resolve('updateList', schema, args),
           },
         },
       }),
     });
     const res = {
-      schema,
       graphQLSchema,
       graphQLType,
     };
-    this._graphQLSchemas.push(res);
+    this._graphQLSchemas[schema] = res;
     return res;
   }
 
-  _getInputType(schema, sick) {
+  _getInputType(schema, unRequired) {
     const { name, refs, struct } = schema;
     return new GraphQLInputObjectType({
       name: name + 'Input',
@@ -214,11 +246,12 @@ export default class Tangram {
           } else {
             throw new Error(`Schema ${schema} relies on ${typeStr}.`);
           }
-          return (!sick && required) ? { type: new GraphQLNonNull(type), defaultValue } : { type, defaultValue };
+          return (!unRequired && required) ? { type: new GraphQLNonNull(type), defaultValue } : { type, defaultValue };
         });
       },
     });
   }
+
   _getSetType(schema) {
     const inputType = this._getInputType(schema, true);
     const { name, struct } = schema;
@@ -244,6 +277,7 @@ export default class Tangram {
       },
     });
   }
+
   _getGraphQLType(schema) {
     const { name, refs, struct } = schema;
     const graphQLType = new GraphQLObjectType({
@@ -267,7 +301,7 @@ export default class Tangram {
               const refType = ref === name ? graphQLType : this._getGraphQLInfo(refs[ref]).graphQLType;
               type = new GraphQLList(refType);
               resolve = parent => {
-                return parent[key] && parent[key].map(val => this.queryById(refs[ref], String(val)));
+                return parent[key] && parent[key].map(val => this.resolve('queryById', refs[ref], String(val)));
               };
             } else {
               throw new Error(`Schema ${schema} relies on ${ref}.`);
@@ -277,7 +311,9 @@ export default class Tangram {
           } else if (refs[typeStr]) {
             const refType = ref === name ? graphQLType : this._getGraphQLInfo(refs[typeStr]).graphQLType;
             type = refType;
-            resolve = parent => this.queryById(refs[typeStr], String(parent[key]));
+            resolve = parent => {
+              return this.resolve('queryById', refs[typeStr], String(parent[key]));
+            };
           } else {
             throw new Error(`Schema ${schema} relies on ${typeStr}.`);
           }
@@ -344,7 +380,41 @@ export default class Tangram {
     const schema = this.getSchema(schemaName);
     return this.exec(schemaName, schema.getActionQL(actionName), params);
   }
-
-  createArryType() {
+  resolve(name, schema, args) {
+    if (this._hooks.all || this._hooks[name]) {
+      const { pre: preStack, after: afterStack } = hooksMerge(this._hooks.all, this._hooks[name]);
+      const middleware = new Middleware(this);
+      middleware.use(preStack);
+      middleware.use(async ({ args, schema, method }) => {
+        return {
+          result: await this[name](schema, args),
+          args,
+          method,
+          schema,
+        };
+      });
+      middleware.use(afterStack);
+      middleware.use(({ result }) => {
+        return result;
+      });
+      return middleware.compose({ args, schema, method: name });
+    }
+    return this[name](schema, args);
+  }
+  addHooks(name, hooks = {}) {
+    if (typeof name !== 'string') {
+      hooks = name;
+      name = 'all';
+    }
+    if (hooks.pre && !isFunction(hooks.pre)
+      || (hooks.after && !isFunction(hooks.after))
+    ) {
+      throw new TypeError('Hooks must be composed of functions!');
+    }
+    hooks = {
+      pre: hooks.pre ? [hooks.pre] : [],
+      after: hooks.after ? [hooks.after] : [],
+    };
+    this._hooks[name] = hooksMerge(this._hooks[name], hooks);
   }
 }

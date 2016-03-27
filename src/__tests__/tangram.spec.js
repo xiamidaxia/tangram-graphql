@@ -44,7 +44,7 @@ describe('Tangram graphql', () => {
       updateUser: { id: '0_1', name: 'newName' },
     });
   });
-  it('query Todo reference User.', async() => {
+  it('query Todo populate User.', async() => {
     expect(await todoTangram.exec('Todo', `
       query {
         todo(id: 2) {

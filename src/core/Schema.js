@@ -1,5 +1,5 @@
-import { VARIABLE_REG } from '../common/constants';
-import { mapValues } from '../common/utils';
+import { VARIABLE_REG } from '../utils/constants';
+import { mapValues } from '../utils';
 const SCHEMA_TYPES = ['Collection', 'Store'];
 const baseType = ['String', 'Int', 'Float', 'Buffer', 'Boolean', 'Date'];
 let _count = 0;
@@ -50,7 +50,7 @@ export default class Schema {
               throw new Error(`Schema struct name illegal: ${obj.name}.`);
             }
             if (initData.name !== type && !baseType.includes(type) && !refs[type]) {
-              throw new Error(`Schema refs ${type} is required.`);
+              throw new Error(`Schema ${initData.name} depends on ${type}.`);
             }
           });
           break;
@@ -58,7 +58,7 @@ export default class Schema {
           if (initData.refs) {
             initData.refs.forEach((dep) => {
               if (!Object.keys(refs).includes(dep)) {
-                throw new Error(`Schema refs ${dep} is required.`);
+                throw new Error(`Schema ${initData.name} depends on ${dep}.`);
               }
             });
           }

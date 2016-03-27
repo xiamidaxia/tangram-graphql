@@ -96,10 +96,9 @@ class TodoTangram extends Tangram {
     }
   }
   updateOne(schema, params) {
-    console.log(params.INPUT);
     const data = getData(schema);
-    const INPUT = params.INPUT;
-    delete params.INPUT;
+    const INPUT = params.SET;
+    delete params.SET;
     const finded = filter(data, params)[0];
     return { ...finded, ...INPUT };
   }

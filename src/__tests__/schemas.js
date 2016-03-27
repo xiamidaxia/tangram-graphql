@@ -36,7 +36,7 @@ const UserSchema = {
     `,
     changeUserName: `
       mutation($userId: ID!, $newName: String!) {
-        updateUser(id: $userId, INPUT: {name: $newName}) {
+        updateUser(id: $userId, SET: {name: $newName}) {
           id
           name
         }
@@ -44,7 +44,7 @@ const UserSchema = {
     `,
     addFriends: `
       mutation($userId: ID!, $friends: [ID]!){
-        updateUser(id: $userId, INPUT: { _friends: { concat: $friends } }) {
+        updateUser(id: $userId, SET: { _friends: { concat: $friends } }) {
           id
           friends {
             id
@@ -53,7 +53,7 @@ const UserSchema = {
       }
     `,
     addUser: `
-      mutation($userInput: User) {
+      mutation($userInput: UserInput) {
         addUser(INPUT: $userInput) {
           ...userFragment
           fiends {

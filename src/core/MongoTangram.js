@@ -1,28 +1,29 @@
 import Tangram from './Tangram';
-import { replaceObj, mapValues } from '../common/utils';
-const idFix = obj => (obj.id = obj._id) && obj;
+import { replaceObj, mapValues, idFixed } from '../utils';
 /**
  * @class MongoTangram
  */
 export default class MongoTangram extends Tangram {
-  constructor(schemas, mongoose) {
-    super(schemas);
+  constructor(schemas, { mongoose }) {
+    super(...arguments);
+    if (!mongoose) throw new Error('MongoTangram need mongoose.');
     this._mongoose = mongoose;
   }
 
   queryById(schema, { id }) {
+    if (!id) throw new Error('MongoTangram.queryById missing id.');
     const model = this.getModel(schema);
-    return model.findById(id).then(idFix);
+    return model.findById(id).then(idFixed);
   }
 
-  queryOne(schema, args) {
+  queryOne(schema, args = {}) {
     const model = this.getModel(schema);
-    return model.findOne(args).then(idFix);
+    return model.findOne(args).then(idFixed);
   }
 
   queryList(schema, args) {
     const model = this.getModel(schema);
-    return model.find(args).then(idFix);
+    return model.find(args).then(idFixed);
   }
 
   queryCount(schema, args) {
@@ -38,7 +39,7 @@ export default class MongoTangram extends Tangram {
     const Model = this.getModel(schema);
     const model = new Model(INPUT);
     return model.save().then(() => {
-      return idFix(model);
+      return idFixed(model);
     });
   }
 

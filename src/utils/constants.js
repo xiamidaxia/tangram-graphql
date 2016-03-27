@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   VARIABLE_REG: /^[a-zA-Z_]+[a-zA-Z_0-9]*$/,
   PARAM_SPECIAL_KEYS: [
     // inline
