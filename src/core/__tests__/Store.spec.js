@@ -17,8 +17,8 @@ describe('Store', () => {
         }, 10);
       });
     },
-    fetcher: (schema, methods, params) => {
-      return serverTangram.resolve(methods, schema, params);
+    fetcher: (method, schema, params) => {
+      return serverTangram.resolve(method, schema, params);
     },
   });
   it('subcribe data.', async () => {

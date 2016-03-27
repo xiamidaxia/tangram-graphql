@@ -380,14 +380,14 @@ export default class Tangram {
     const schema = this.getSchema(schemaName);
     return this.exec(schemaName, schema.getActionQL(actionName), params);
   }
-  resolve(name, schema, args) {
-    if (this._hooks.all || this._hooks[name]) {
-      const { pre: preStack, after: afterStack } = hooksMerge(this._hooks.all, this._hooks[name]);
+  resolve(method, schema, args) {
+    if (this._hooks.all || this._hooks[method]) {
+      const { pre: preStack, after: afterStack } = hooksMerge(this._hooks.all, this._hooks[method]);
       const middleware = new Middleware(this);
       middleware.use(preStack);
-      middleware.use(async ({ args, schema, method }) => {
+      middleware.use(async ({ args }) => {
         return {
-          result: await this[name](schema, args),
+          result: await this[method](schema, args),
           args,
           method,
           schema,
@@ -397,9 +397,9 @@ export default class Tangram {
       middleware.use(({ result }) => {
         return result;
       });
-      return middleware.compose({ args, schema, method: name });
+      return middleware.compose({ args, schema, method });
     }
-    return this[name](schema, args);
+    return this[method](schema, args);
   }
   addHooks(name, hooks = {}) {
     if (typeof name !== 'string') {
